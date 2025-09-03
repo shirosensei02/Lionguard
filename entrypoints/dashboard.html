@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Allowlist Dashboard</title>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #1f2937; color: #fff; padding: 2rem; }
+  h1 { color: #f87171; margin-bottom: 1rem; }
+  input, button { padding: 0.5rem; margin: 0.25rem 0; border-radius: 0.25rem; border: none; }
+  input { width: 300px; }
+  button { cursor: pointer; }
+  button.remove { background: #dc2626; color: white; }
+  button.add { background: #16a34a; color: white; }
+  ul { list-style: none; padding: 0; }
+  li { margin: 0.5rem 0; display: flex; justify-content: space-between; align-items: center; background: #111827; padding: 0.5rem; border-radius: 0.25rem; }
+</style>
+</head>
+<body>
+<h1>Allowlist Dashboard</h1>
+
+<div>
+  <input type="text" id="new-url" placeholder="Enter URL to allowlist">
+  <button id="add-btn" class="add">Add URL</button>
+</div>
+
+<ul id="allowlist"></ul>
+
+<script>
+async function loadAllowlist() {
+  const result = await chrome.storage.local.get('allowlist');
+  const allowlist = result.allowlist || [];
+  const listEl = document.getElementById('allowlist');
+  listEl.innerHTML = '';
+  allowlist.forEach(url => {
+    const li = document.createElement('li');
+    li.textContent = url;
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.classList.add('remove');
+    removeBtn.addEventListener('click', async () => {
+      const updated = allowlist.filter(u => u !== url);
+      await chrome.storage.local.set({ allowlist: updated });
+      loadAllowlist();
+    });
+
+    li.appendChild(removeBtn);
+    listEl.appendChild(li);
+  });
+}
+
+document.getElementById('add-btn').addEventListener('click', async () => {
+  const input = document.getElementById('new-url');
+  const url = input.value.trim();
+  if (!url) return;
+
+  const result = await chrome.storage.local.get('allowlist');
+  const allowlist = result.allowlist || [];
+  if (!allowlist.includes(url)) allowlist.push(url);
+  await chrome.storage.local.set({ allowlist });
+  input.value = '';
+  loadAllowlist();
+});
+
+loadAllowlist();
+</script>
+</body>
+</html>

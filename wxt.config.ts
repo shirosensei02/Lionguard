@@ -20,12 +20,16 @@ export default defineConfig({
     },
     web_accessible_resources: [
       {
-        resources: ["warning.html"],
+        resources: ["warning.html", "dashboard.html"], // ✅ expose dashboard
         matches: ["<all_urls>"]
       }
     ],
     action: {
-      default_popup: "popup.html"
+      default_popup: "popup.html",
+    },
+    options_ui: {
+      page: "dashboard.html",   // ✅ makes dashboard accessible via chrome://extensions → Details → Extension options
+      open_in_tab: true
     }
   },
   webExt: {

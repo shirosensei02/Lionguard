@@ -17,7 +17,7 @@ const safeSet = async (obj: Record<string, any>) => {
   catch (err) { console.warn(`[Background] Failed to set storage:`, err); }
 };
 
-// --- Allowlist Helpers ---
+// --- Allowlist ---
 const getAllowlist = async (): Promise<Set<string>> => {
   const result = await safeGet("allowlist");
   return new Set(result.allowlist || []);
@@ -43,14 +43,18 @@ const addToMaliciousCache = async (url: string) => {
   await safeSet({ maliciousCache: Array.from(cache) });
 };
 
-// --- VirusTotal Helpers ---
+// --- VirusTotal Scan ---
 const scanUrl = async (url: string): Promise<string | null> => {
   if (!API_KEY) return null;
   try {
     const formData = new URLSearchParams({ url });
     const res = await fetch("https://www.virustotal.com/api/v3/urls", {
       method: "POST",
-      headers: { "accept": "application/json", "content-type": "application/x-www-form-urlencoded", "x-apikey": API_KEY },
+      headers: { 
+        "accept": "application/json",
+        "content-type": "application/x-www-form-urlencoded",
+        "x-apikey": API_KEY
+      },
       body: formData.toString()
     });
     if (!res.ok) return null;
@@ -74,8 +78,10 @@ const getAnalysis = async (analysisId: string): Promise<boolean> => {
 const isMalicious = async (url: string): Promise<boolean> => {
   const cache = await getMaliciousCache();
   if (cache.has(url)) return true;
+
   const analysisId = await scanUrl(url);
   if (!analysisId) return false;
+
   const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
   for (let i = 0; i < 5; i++) {
     const result = await getAnalysis(analysisId);
@@ -122,11 +128,16 @@ export default defineBackground(() => {
     const host = new URL(tab.url).hostname;
     if (allowlist.has(host)) return;
 
+    // **Scan before redirecting**
     const malicious = await isMalicious(tab.url);
     if (malicious) {
-      await addBlockingRule(tab.url);
+      const ruleId = await addBlockingRule(tab.url);
       recentlyChecked.add(tabId);
-      chrome.tabs.update(tabId, { url: tab.url });
+
+      const warningUrl = chrome.runtime.getURL(
+        `warning.html?maliciousUrl=${encodeURIComponent(tab.url)}&ruleId=${ruleId}`
+      );
+      chrome.tabs.update(tabId, { url: warningUrl });
     }
   });
 
