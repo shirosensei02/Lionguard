@@ -3,6 +3,7 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
-    "typeRoots": ["./types", "./node_modules/@types"]
-  }
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "types": ["chrome"]
+  },
 }

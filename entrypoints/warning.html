@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Warning: Malicious Site Detected</title>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #1f2937; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 1rem; }
+  .container { max-width: 600px; width: 100%; background: #111827; padding: 2rem; border-radius: 1rem; text-align: center; border: 2px solid #f87171; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+  h1 { color: #f87171; margin-bottom: 0.5rem; }
+  p { margin-bottom: 1rem; color: #d1d5db; }
+  .url { background: #1e293b; padding: 0.75rem; border-radius: 0.5rem; word-break: break-word; margin-bottom: 1rem; border: 1px solid #374151; }
+  button { width: 100%; padding: 1rem; margin-top: 0.5rem; font-size: 1rem; font-weight: bold; border-radius: 0.5rem; cursor: pointer; border: none; }
+  .btn-back { background: #dc2626; color: white; }
+  .btn-proceed { background: #4b5563; color: white; }
+  .btn-allow { background: #16a34a; color: white; }
+  .disabled { opacity: 0.6; cursor: not-allowed; }
+  #allow-status { margin-top: 0.5rem; font-size: 0.9rem; color: #a3a3a3; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>⚠️ Warning: Malicious Website Detected</h1>
+  <p>This site has been flagged as potentially harmful. Navigation has been blocked.</p>
+  <div class="url" id="malicious-url">Loading...</div>
+  <button id="go-back-btn" class="btn-back">Go Back to Previous Page</button>
+  <button id="proceed-btn" class="btn-proceed">Proceed Anyway (Not Recommended)</button>
+  <button id="allow-btn" class="btn-allow">Allowlist This Site</button>
+  <div id="allow-status"></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const rawUrl = params.get('maliciousUrl') || '';
+  const ruleId = Number(params.get('ruleId'));
+  const decodedUrl = rawUrl ? decodeURIComponent(rawUrl) : '';
+
+  const urlDisplay = document.getElementById('malicious-url');
+  urlDisplay.textContent = decodedUrl || 'Unknown';
+
+  const goBackBtn = document.getElementById('go-back-btn');
+  const proceedBtn = document.getElementById('proceed-btn');
+  const allowBtn = document.getElementById('allow-btn');
+  const allowStatus = document.getElementById('allow-status');
+
+  // Check if site is already allowlisted
+  const host = decodedUrl ? new URL(decodedUrl).hostname : '';
+  const result = await chrome.storage.local.get('allowlist');
+  const allowlist = new Set(result.allowlist || []);
+  if (host && allowlist.has(host)) {
+    allowBtn.disabled = true;
+    allowBtn.classList.add('disabled');
+    allowStatus.textContent = "This site is already allowlisted.";
+  }
+
+  // Go back
+  goBackBtn.addEventListener('click', () => window.history.back());
+
+  // Proceed
+  proceedBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({
+      action: "proceed",
+      maliciousUrl: decodedUrl,
+      ruleId
+    });
+  });
+
+  // Allowlist
+  allowBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: "allowlist", url: decodedUrl, ruleId });
+    allowBtn.disabled = true;
+    allowBtn.classList.add('disabled');
+    allowStatus.textContent = "Site added to allowlist.";
+  });
+});
+</script>
+</body>
+</html>

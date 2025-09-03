@@ -1,12 +1,34 @@
-import {defineConfig} from "wxt";
+import { defineConfig } from "wxt";
 
-// See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: {
-    host_permissions: ["http://127.0.0.1:8000/*", "http://localhost:8000/*"],
+    name: "Lionguard",
+    description: "Blocks malicious URLs using an external API + DNR",
+    version: "1.0.0",
+    manifest_version: 3,
+    permissions: [
+      "declarativeNetRequest",
+      "declarativeNetRequestWithHostAccess",
+      "tabs",
+      "storage"
+    ],
+    host_permissions: ["<all_urls>"],
+    background: {
+      service_worker: "background.js",
+      type: "module"
+    },
+    web_accessible_resources: [
+      {
+        resources: ["warning.html"],
+        matches: ["<all_urls>"]
+      }
+    ],
+    action: {
+      default_popup: "popup.html"
+    }
   },
   webExt: {
-    startUrls: ["http://localhost:3000"],
+    startUrls: ["http://localhost:3000"] // dev server URL for testing
   },
 });
