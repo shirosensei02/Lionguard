@@ -1,6 +1,6 @@
 import { Toggle, Setting, Card } from '@/components';
 import { Trash } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type Page = 'home' | 'details' | 'allowlist' | 'settings';
 
@@ -9,7 +9,8 @@ function App() {
   const iconSize = 35;
   const iconSizeSmall = 25;
   const [currentPage, setCurrentPage] = useState<Page>('home');
-
+  const [allowlist, setAllowlist] = useState<string[]>([]);
+  const [newUrl, setNewUrl] = useState<string>('');
 
   const footerDetailsOnClick = () => {
     setCurrentPage('details');
@@ -26,51 +27,68 @@ function App() {
   const handleBackToHome = () => {
     setCurrentPage('home');
   }
+  // Fetch allowlist from background when popup loads
+useEffect(() => {
+  chrome.runtime.sendMessage({ type: "get-allowlist" }, (response) => {
+    if (response && Array.isArray(response)) {
+      setAllowlist(response);
+    }
+  });
+}, []);
+
+  // Add URL to allowlist
+const handleAddUrl = () => {
+  if (!newUrl) return;
+  chrome.runtime.sendMessage({ type: "add-url", url: newUrl }, (response) => {
+    if (response && Array.isArray(response)) {
+      setAllowlist(response); // update frontend state
+      setNewUrl(""); // clear input
+    }
+  });
+};
+
+  // Remove URL from allowlist
+const handleRemoveUrl = (url: string) => {
+  chrome.runtime.sendMessage({ type: "remove-url", url }, (response) => {
+    if (response && Array.isArray(response)) {
+      setAllowlist(response); // update frontend state
+    }
+  });
+};
 
   // Settings page
-  if (currentPage === 'settings') {
-    return (
-      <>
-        <div className='header'>
-          <h1 className='title'>
-            <span className='title-red'>Lion</span>
-            <span className='title-black'>Guard</span>
-          </h1>
-          <div className='header-right'>
-            <button onClick={handleBackToHome} className='back-button'>Back</button>
+if (currentPage === 'settings') {
+  return (
+    <>
+      <div className='header'>
+        <h1 className='title'>
+          <span className='title-red'>Lion</span>
+          <span className='title-black'>Guard</span>
+        </h1>
+        <div className='header-right'>
+          <button onClick={handleBackToHome} className='back-button'>Back</button>
+        </div>
+      </div>
+      <div className='settings'>
+        <h2 className='settings-title'>Settings</h2>
+        <div className='settings-content'>
+          <div className="settings-pii">
+            <p>PII Detection</p>
+            <Toggle size={iconSize} />
+          </div>
+          <div className="settings-url">
+            <p>URL Reputation Check</p>
+            <Toggle size={iconSize} />
           </div>
         </div>
-        <div className='settings'>
-          <h2 className='settings-title'>Settings</h2>
-          <div className='settings-content'>
-            <div className="settings-pii">
-              <p>PII Detection</p>
-              <Toggle size={iconSize} />
-            </div>
-            <div className="settings-url">
-              <p>URL Reputation Check</p>
-              <Toggle size={iconSize} />
-            </div>
-          </div>
-        </div>
-        <div className='allowlist'>
-          <h2 className='allowlist-title'>Allowlist</h2>
-          <div className='allowlist-content'>
-            <div className="allowlist-item">
-              <p>https://www.google.com</p>
-              <button className='allowlist-item-button'>
-                <Trash size={iconSizeSmall} />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className='footer'>
-          <button className='footer-export'>Export</button>
-          <button className='footer-uninstall'>Uninstall</button>
-        </div>
-      </>
-    );
-  }
+      </div>
+      <div className='footer'>
+        <button className='footer-export'>Export</button>
+        <button className='footer-uninstall'>Uninstall</button>
+      </div>
+    </>
+  );
+}
 
   // Details page
   if (currentPage === 'details') {
@@ -91,24 +109,49 @@ function App() {
     );
   }
 
-  // Allowlist page
-  if (currentPage === 'allowlist') {
-    return (
-      <div>
-        <div className='header'>
-          <button onClick={handleBackToHome} className='back-button'>← Back</button>
-          <h1 className='title'>
-            <span className='title-red'>Allowlist</span>
-          </h1>
-        </div>
-        <div className='body'>
-          <h2>Manage Allowlist</h2>
-          <p>Manage your allowed sites here...</p>
-          {/* Add your allowlist content here */}
-        </div>
+// Allowlist page (you could also reuse the same dynamic code if needed)
+// --- MODIFIED: Dedicated Allowlist page ---
+if (currentPage === 'allowlist') {
+  return (
+    <div>
+      <div className='header'>
+        <button onClick={handleBackToHome} className='back-button'>
+          ← Back
+        </button>
+        <h1 className='title'>
+          <span className='title-red'>Allowlist</span>
+        </h1>
       </div>
-    );
-  }
+      <div className='body'>
+        <h2>Manage Allowlist</h2>
+
+        <div className='allowlist-input'>
+          <input
+            type='text'
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            placeholder='Enter site URL'
+          />
+          <button onClick={handleAddUrl}>Add</button>
+        </div>
+
+        <ul className='allowlist-list'>
+          {allowlist.map((url, index) => (
+            <li key={index} className='allowlist-item'>
+              <span>{url}</span>
+              <button
+                className='allowlist-item-button'
+                onClick={() => handleRemoveUrl(url)} 
+              >
+                <Trash size={iconSizeSmall} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
   return (
     <>

@@ -7,14 +7,21 @@ if (!API_KEY) {
 // --- Storage Helpers ---
 const safeGet = async (key: string) => {
   if (!chrome?.storage?.local) return {};
-  try { return await chrome.storage.local.get(key); }
-  catch (err) { console.warn(`[Background] Failed to get ${key}:`, err); return {}; }
+  try {
+    return await chrome.storage.local.get(key);
+  } catch (err) {
+    console.warn(`[Background] Failed to get ${key}:`, err);
+    return {};
+  }
 };
 
 const safeSet = async (obj: Record<string, any>) => {
   if (!chrome?.storage?.local) return;
-  try { await chrome.storage.local.set(obj); }
-  catch (err) { console.warn(`[Background] Failed to set storage:`, err); }
+  try {
+    await chrome.storage.local.set(obj);
+  } catch (err) {
+    console.warn(`[Background] Failed to set storage:`, err);
+  }
 };
 
 // --- Allowlist ---
@@ -29,6 +36,14 @@ const addToAllowlist = async (url: string) => {
   allowlist.add(host);
   await safeSet({ allowlist: Array.from(allowlist) });
   console.log(`[Background] Added to allowlist (host): ${host}`);
+};
+
+const removeFromAllowlist = async (url: string) => {
+  const host = new URL(url).hostname;
+  const allowlist = await getAllowlist();
+  allowlist.delete(host);
+  await safeSet({ allowlist: Array.from(allowlist) });
+  console.log(`[Background] Removed from allowlist (host): ${host}`);
 };
 
 // --- Malicious Cache ---
@@ -50,29 +65,36 @@ const scanUrl = async (url: string): Promise<string | null> => {
     const formData = new URLSearchParams({ url });
     const res = await fetch("https://www.virustotal.com/api/v3/urls", {
       method: "POST",
-      headers: { 
-        "accept": "application/json",
+      headers: {
+        accept: "application/json",
         "content-type": "application/x-www-form-urlencoded",
-        "x-apikey": API_KEY
+        "x-apikey": API_KEY,
       },
-      body: formData.toString()
+      body: formData.toString(),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.data?.id || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 const getAnalysis = async (analysisId: string): Promise<boolean> => {
   if (!API_KEY) return false;
   try {
-    const res = await fetch(`https://www.virustotal.com/api/v3/analyses/${analysisId}`, {
-      headers: { "x-apikey": API_KEY }
-    });
+    const res = await fetch(
+      `https://www.virustotal.com/api/v3/analyses/${analysisId}`,
+      {
+        headers: { "x-apikey": API_KEY },
+      }
+    );
     if (!res.ok) return false;
     const stats = (await res.json())?.data?.attributes?.stats;
     return stats?.malicious > 0 || false;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 };
 
 const isMalicious = async (url: string): Promise<boolean> => {
@@ -82,7 +104,7 @@ const isMalicious = async (url: string): Promise<boolean> => {
   const analysisId = await scanUrl(url);
   if (!analysisId) return false;
 
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+  const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
   for (let i = 0; i < 5; i++) {
     const result = await getAnalysis(analysisId);
     if (result !== null) {
@@ -98,16 +120,20 @@ const isMalicious = async (url: string): Promise<boolean> => {
 const addBlockingRule = async (url: string) => {
   const host = new URL(url).hostname;
   const ruleId = Math.floor(Math.random() * 1_000_000);
-  const redirectUrl = `/warning.html?maliciousUrl=${encodeURIComponent(url)}&ruleId=${ruleId}`;
+  const redirectUrl = `/warning.html?maliciousUrl=${encodeURIComponent(
+    url
+  )}&ruleId=${ruleId}`;
 
   await chrome.declarativeNetRequest.updateDynamicRules({
-    addRules: [{
-      id: ruleId,
-      priority: 1,
-      action: { type: "redirect", redirect: { extensionPath: redirectUrl } },
-      condition: { urlFilter: host, resourceTypes: ["main_frame"] }
-    }],
-    removeRuleIds: []
+    addRules: [
+      {
+        id: ruleId,
+        priority: 1,
+        action: { type: "redirect", redirect: { extensionPath: redirectUrl } },
+        condition: { urlFilter: host, resourceTypes: ["main_frame"] },
+      },
+    ],
+    removeRuleIds: [],
   });
 
   return ruleId;
@@ -122,7 +148,10 @@ export default defineBackground(() => {
   chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status !== "loading" || !tab.url) return;
     if (!/^https?:\/\//.test(tab.url)) return;
-    if (recentlyChecked.has(tabId)) { recentlyChecked.delete(tabId); return; }
+    if (recentlyChecked.has(tabId)) {
+      recentlyChecked.delete(tabId);
+      return;
+    }
 
     const allowlist = await getAllowlist();
     const host = new URL(tab.url).hostname;
@@ -135,23 +164,46 @@ export default defineBackground(() => {
       recentlyChecked.add(tabId);
 
       const warningUrl = chrome.runtime.getURL(
-        `warning.html?maliciousUrl=${encodeURIComponent(tab.url)}&ruleId=${ruleId}`
+        `warning.html?maliciousUrl=${encodeURIComponent(
+          tab.url
+        )}&ruleId=${ruleId}`
       );
       chrome.tabs.update(tabId, { url: warningUrl });
     }
   });
 
-  chrome.runtime.onMessage.addListener(async (msg, sender) => {
-    if (msg.action === "proceed" && msg.ruleId && sender.tab?.id) {
-      await chrome.declarativeNetRequest.updateDynamicRules({
-        addRules: [],
-        removeRuleIds: [msg.ruleId]
-      });
-      chrome.tabs.update(sender.tab.id, { url: msg.maliciousUrl });
-    }
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    (async () => {
+      if (msg.action === "proceed" && msg.ruleId && sender.tab?.id) {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+          addRules: [],
+          removeRuleIds: [msg.ruleId],
+        });
+        chrome.tabs.update(sender.tab.id, { url: msg.maliciousUrl });
+      }
 
-    if (msg.action === "allowlist" && msg.url) {
-      await addToAllowlist(msg.url);
-    }
+      if (msg.action === "allowlist" && msg.url) {
+        await addToAllowlist(msg.url);
+      }
+
+      // --- Popup communication (App.tsx) ---
+      if (msg.type === "get-allowlist") {
+        const allowlist = await getAllowlist();
+        sendResponse(Array.from(allowlist));
+      }
+
+      if (msg.type === "add-url" && msg.url) {
+        await addToAllowlist(msg.url);
+        const allowlist = await getAllowlist();
+        sendResponse(Array.from(allowlist));
+      }
+
+      if (msg.type === "remove-url" && msg.url) {
+        await removeFromAllowlist(msg.url);
+        const allowlist = await getAllowlist();
+        sendResponse(Array.from(allowlist));
+      }
+    })();
+    return true; // Keep message channel open for async sendResponse
   });
 });

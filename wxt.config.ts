@@ -26,10 +26,6 @@ export default defineConfig({
     ],
     action: {
       default_popup: "popup.html",
-    },
-    options_ui: {
-      page: "dashboard.html",   // ✅ makes dashboard accessible via chrome://extensions → Details → Extension options
-      open_in_tab: true
     }
   },
   webExt: {
