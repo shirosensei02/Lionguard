@@ -12,11 +12,13 @@
   --color-black: #000000;
   --color-grey: #383838;
   --color-light-grey: #f0f0f0;
+  --color-red: #ff4343;
 }
 
 /* Header */
 .header {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -110,4 +112,53 @@ button:active {
 .footer-allowlist-button {
   font-weight: 600;
   color: var(--color-blue);
+}
+
+/* Back button styles */
+.back-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--color-grey);
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.back-button:hover {
+  background-color: rgba(56, 56, 56, 0.1);
+  color: var(--color-blue);
+  transform: translateX(-2px);
+}
+
+.back-button:active {
+  transform: scale(0.95) translateX(-2px);
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-pii, .settings-url, .allowlist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-pii > p, .settings-url > p, .allowlist-item > p {
+  font-size: 1rem;
+}
+
+.allowlist-item-button {
+  color: var(--color-red);
+}
+
+.footer-export, .footer-uninstall {
+  font-weight: 600;
+  color: var(--color-red);
 }

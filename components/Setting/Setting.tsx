@@ -1,8 +1,10 @@
 import { Settings } from 'lucide-react';
 
-function Setting({ size }: { size: number }) {
+function Setting({ size, onClick }: { size: number, onClick?: () => void }) {
     const handleClick = () => {
-
+        if (onClick) {
+            onClick();
+        }
     }
 
     return (
