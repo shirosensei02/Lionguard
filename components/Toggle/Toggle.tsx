@@ -1,7 +1,7 @@
 import { ToggleLeft, ToggleRight } from 'lucide-react'
 import { useState } from 'react';
 
-function Toggle() {
+function Toggle({size}: {size: number}) {
     const [isOn, setIsOn] = useState(false);
     const toggle = () => {
         setIsOn(!isOn);
@@ -12,7 +12,7 @@ function Toggle() {
     }
     return (
         <button onClick={handleClick}>
-            {isOn ? <ToggleRight size={40}/> : <ToggleLeft size={40}/>}
+            {isOn ? <ToggleRight size={size}/> : <ToggleLeft size={size}/>}
         </button>
     )
 }
