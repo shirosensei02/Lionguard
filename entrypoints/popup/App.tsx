@@ -10,6 +10,7 @@ function App() {
   const iconSizeSmall = 25;
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [allowlist, setAllowlist] = useState<string[]>([]);
+  const [tempList, setTempList] = useState<string[]>([]);    
   const [newUrl, setNewUrl] = useState<string>('');
 
   const footerDetailsOnClick = () => {
@@ -28,34 +29,58 @@ function App() {
     setCurrentPage('home');
   }
   // Fetch allowlist from background when popup loads
-useEffect(() => {
-  chrome.runtime.sendMessage({ type: "get-allowlist" }, (response) => {
-    if (response && Array.isArray(response)) {
-      setAllowlist(response);
-    }
-  });
-}, []);
+  useEffect(() => {
+    chrome.runtime.sendMessage({ action: "get-allowlist" }, (response) => {
+      if (response && Array.isArray(response)) setAllowlist(response);
+    });
+    chrome.runtime.sendMessage({ action: "get-temp-allowlist" }, (response) => {
+      if (response && Array.isArray(response)) setTempList(response);
+    });
+  }, []);
 
   // Add URL to allowlist
-const handleAddUrl = () => {
-  if (!newUrl) return;
-  chrome.runtime.sendMessage({ type: "add-url", url: newUrl }, (response) => {
-    if (response && Array.isArray(response)) {
-      setAllowlist(response); // update frontend state
-      setNewUrl(""); // clear input
-    }
-  });
-};
+  const handleAddUrl = () => {
+    if (!newUrl) return;
+    let fullUrl = newUrl;
+    if (!/^https?:\/\//i.test(newUrl)) fullUrl = "https://" + newUrl; // Normalize URL
 
-  // Remove URL from allowlist
-const handleRemoveUrl = (url: string) => {
-  chrome.runtime.sendMessage({ type: "remove-url", url }, (response) => {
-    if (response && Array.isArray(response)) {
-      setAllowlist(response); // update frontend state
-    }
-  });
-};
+    chrome.runtime.sendMessage({ action: "allowlist", url: fullUrl }, (response) => {
+      if (response && Array.isArray(response)) {
+        setAllowlist(response);
+        setNewUrl("");
+      }
+    });
+  };
 
+  // Remove URL from permanent allowlist
+  const handleRemoveUrl = (url: string) => {
+    let fullUrl = url;
+    if (!/^https?:\/\//i.test(url)) fullUrl = "https://" + url;
+
+    chrome.runtime.sendMessage({ action: "remove-url", url: fullUrl }, (response) => {
+      if (response && Array.isArray(response)) setAllowlist(response);
+    });
+  };
+
+  // Remove URL from temporary allowlist
+  const handleRemoveTemp = (url: string) => {
+    chrome.runtime.sendMessage({ action: "remove-temp-url", url }, (resp) => {
+      if (resp?.ok) setTempList((prev) => prev.filter(u => u !== url));
+    });
+  };
+  // --- Minimal change: add handle for proceeding to temp allowlist ---
+  const handleProceedTemp = (url: string) => {
+    chrome.runtime.sendMessage({ action: "proceed-temp", url }, (resp) => {
+      if (resp?.ok) {
+        // Update tempList immediately so the UI shows it
+        setTempList((prev) => {
+          const host = new URL(url).hostname;
+          if (!prev.includes(host)) return [...prev, host];
+          return prev;
+        });
+      }
+    });
+  };
   // Settings page
 if (currentPage === 'settings') {
   return (
@@ -109,49 +134,59 @@ if (currentPage === 'settings') {
     );
   }
 
-// Allowlist page (you could also reuse the same dynamic code if needed)
-// --- MODIFIED: Dedicated Allowlist page ---
-if (currentPage === 'allowlist') {
-  return (
-    <div>
-      <div className='header'>
-        <button onClick={handleBackToHome} className='back-button'>
-          ← Back
-        </button>
-        <h1 className='title'>
-          <span className='title-red'>Allowlist</span>
-        </h1>
-      </div>
-      <div className='body'>
-        <h2>Manage Allowlist</h2>
-
-        <div className='allowlist-input'>
-          <input
-            type='text'
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            placeholder='Enter site URL'
-          />
-          <button onClick={handleAddUrl}>Add</button>
+  // --- Allowlist page (permanent + temp) ---
+  if (currentPage === 'allowlist') {
+    return (
+      <div>
+        <div className='header'>
+          <button onClick={handleBackToHome} className='back-button'>← Back</button>
+          <h1 className='title'><span className='title-red'>Allowlist</span></h1>
         </div>
+        <div className='body'>
+          <h2>Manage Allowlist</h2>
 
-        <ul className='allowlist-list'>
-          {allowlist.map((url, index) => (
-            <li key={index} className='allowlist-item'>
-              <span>{url}</span>
-              <button
-                className='allowlist-item-button'
-                onClick={() => handleRemoveUrl(url)} 
-              >
-                <Trash size={iconSizeSmall} />
-              </button>
-            </li>
-          ))}
-        </ul>
+          {/* Add new URL */}
+          <div className='allowlist-input'>
+            <input
+              type='text'
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              placeholder='Enter site URL'
+            />
+            <button onClick={handleAddUrl}>Add</button>
+          </div>
+
+          {/* Permanent Allowlist */}
+          <h3>Permanent Allowlist</h3>
+          <ul className='allowlist-list'>
+            {allowlist.map((url, index) => (
+              <li key={index} className='allowlist-item'>
+                <span>{url}</span>
+                <button className='allowlist-item-button' onClick={() => handleRemoveUrl(url)}>
+                  <Trash size={iconSizeSmall} />
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Temporary Allowlist */}
+          <h3>Temporary Allowlist (Session)</h3>
+          <ul className='allowlist-list'>
+            {tempList.map((url) => (
+              <li key={url} className='allowlist-item'>
+                <span>{url}</span>
+                <button className='allowlist-item-button' onClick={() => handleRemoveTemp(url)}>
+                  <Trash size={iconSizeSmall} />
+                </button>
+                {/* Example "Proceed Anyway" button to add to temp list */}
+                <button onClick={() => handleProceedTemp(url)}>Proceed</button>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <>

@@ -35,22 +35,18 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const params = new URLSearchParams(window.location.search);
   const rawUrl = params.get('maliciousUrl') || '';
-  const ruleId = Number(params.get('ruleId'));
   const decodedUrl = rawUrl ? decodeURIComponent(rawUrl) : '';
 
   const urlDisplay = document.getElementById('malicious-url');
   const loadingEl = document.getElementById('loading');
-
   const goBackBtn = document.getElementById('go-back-btn');
   const proceedBtn = document.getElementById('proceed-btn');
   const allowBtn = document.getElementById('allow-btn');
   const allowStatus = document.getElementById('allow-status');
 
-  // Hide loading once URL is set
   urlDisplay.textContent = decodedUrl || 'Unknown';
   loadingEl.style.display = 'none';
 
-  // Check allowlist
   const host = decodedUrl ? new URL(decodedUrl).hostname : '';
   const result = await chrome.storage.local.get('allowlist');
   const allowlist = new Set(result.allowlist || []);
@@ -69,23 +65,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Proceed
+  // --- Proceed Anyway (temporary allowlist) ---
   proceedBtn.addEventListener('click', () => {
-    chrome.runtime.sendMessage({
-      action: "proceed",
-      maliciousUrl: decodedUrl,
-      ruleId
-    });
+    if (!decodedUrl) return;
+    chrome.runtime.sendMessage(
+      { action: "proceed-temp", url: decodedUrl },
+      (response) => {
+        if (!response?.ok) {
+          console.error("Failed to proceed to site:", decodedUrl);
+        }
+      }
+    );
   });
 
-  // Allowlist
+  // --- Allowlist permanently ---
   allowBtn.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: "allowlist", url: decodedUrl, ruleId });
-    allowBtn.disabled = true;
-    allowBtn.classList.add('disabled');
-    allowStatus.textContent = "Site added to allowlist.";
+    if (!decodedUrl) return;
+    chrome.runtime.sendMessage({ action: "allowlist", url: decodedUrl }, (response) => {
+      console.log("Allowlist updated:", response);
+      allowBtn.disabled = true;
+      allowBtn.classList.add('disabled');
+      allowStatus.textContent = "Site added to allowlist.";
+    });
   });
 });
 </script>
+
+
 </body>
 </html>
