@@ -4,7 +4,7 @@ import {callRedactApi, type NerEntity} from "../core/mockRedactApi";
 interface EditorCtx {
   el: HTMLTextAreaElement | HTMLElement; // textarea, input[type=text], or contenteditable
   lastMap: Record<string, string>; // token -> original
-  lastRedactions: {id: string; kind: string; value: string}[];
+  lastRedactions: {id: string; kind: string; originalLabel: string; value: string}[];
 }
 
 /** DOM bridge (CSP-safe) for allowlist */
@@ -67,13 +67,17 @@ export class DOMWatchers {
   private editors = new WeakMap<Element, EditorCtx>();
   private policy: Policy | null = null;
   private host: string | null = null;
+  private modalContext: {
+      items: {ent: NerEntity; kind: PiiKind}[];
+      onConfirm: (selected: {ent: NerEntity; kind: PiiKind}[]) => void;
+    } | null = null;
 
   // Debounce & IME guards
   private seq = 0;
   private debounceTimer?: number;
   private debounceMs = 300;
   private composing = false;
-
+  private currentRequestCtl?: AbortController; // <-- ADD THIS LINE
   // HUD linger
   private hudLingerTimer?: number;
   private hudLingerMs = 4000;
@@ -224,8 +228,8 @@ export class DOMWatchers {
       chip.dataset.id = r.id;
       chip.dataset.kind = r.kind;
       chip.dataset.original = original;
-      chip.title = `Redacted: ${r.kind}`;
-      chip.innerHTML = `<span class="icon">⚠️</span><span>${r.kind}</span><button type="button">undo</button>`;
+      chip.title = `Redacted: ${r.originalLabel}`;
+      chip.innerHTML = `<span class="icon">⚠️</span><span>${r.originalLabel}</span><button type="button">undo</button>`;
 
       const blockFocusSteal = (e: Event) => e.preventDefault();
       chip.addEventListener("pointerdown", blockFocusSteal);
@@ -308,6 +312,22 @@ export class DOMWatchers {
       }
     });
 
+    const redactBtn = m.querySelector('[data-act="redact"]') as HTMLButtonElement;
+    redactBtn.addEventListener("click", () => {
+      if (!this.modalContext) return; // Safety check
+
+      const selectedIdx = Array.from(this.modal!.querySelectorAll<HTMLInputElement>(".pii-item-ck"))
+        .filter((ck) => ck.checked)
+        .map((ck) => Number(ck.dataset.idx));
+
+      const selected = selectedIdx.map((i) => this.modalContext!.items[i]).filter(Boolean);
+
+      // Call the original onConfirm callback with the selected items
+      this.modalContext.onConfirm(selected);
+
+      this.hideModal();
+    });
+
     log("Modal installed");
   }
 
@@ -319,56 +339,6 @@ export class DOMWatchers {
     (this.modal.querySelector('[data-opt="allow"]') as HTMLInputElement).checked = false;
   }
 
-  //   private openModal(groups: Map<PiiKind, NerEntity[]>, onRedact: () => void) {
-  //   if (!this.modal) this.installModal();
-  //   if (!this.modal) return;
-
-  //   const list = this.modal.querySelector('.pii-modal__list')!;
-  //   list.innerHTML = '';
-
-  //   for (const [kind, ents] of groups) {
-  //     const section = document.createElement('section');
-  //     section.className = 'pii-modal__group';
-  //     section.innerHTML = `
-  //       <div class="pii-modal__groupHead">
-  //         <span class="pii-badge" data-kind="${kind}">${kind}</span>
-  //         <span class="pii-count">${ents.length}</span>
-  //       </div>
-  //     `;
-  //     const ul = document.createElement('ul');
-  //     ul.className = 'pii-modal__items';
-  //     for (const e of ents) {
-  //       const li = document.createElement('li');
-  //       li.className = 'pii-item';
-  //       li.textContent = e.text;
-  //       ul.appendChild(li);
-  //     }
-  //     section.appendChild(ul);
-  //     list.appendChild(section);
-  //   }
-
-  //   this.modal.classList.add('is-open');
-
-  //   const redactBtn = this.modal.querySelector('[data-act="redact"]') as HTMLButtonElement;
-  //   const onClick = () => {
-  //     redactBtn.removeEventListener('click', onClick);
-  //     this.hideModal();
-  //     onRedact();
-  //   };
-  //   redactBtn.addEventListener('click', onClick);
-
-  //   // Focus trap + autofocus
-  //   const card = this.modal.querySelector('.pii-modal__card') as HTMLElement;
-  //   card.focus();
-  //   const focusables = card.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-  //   const first = focusables[0], last = focusables[focusables.length - 1];
-  //   card.addEventListener('keydown', (e: KeyboardEvent) => {
-  //     if (e.key !== 'Tab' || focusables.length === 0) return;
-  //     if (e.shiftKey && document.activeElement === first) { e.preventDefault(); (last as HTMLElement).focus(); }
-  //     else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); (first as HTMLElement).focus(); }
-  //   });
-  // }
-  // NEW signature: pass the raw items array in so we can render checkboxes
   private openModalWithSelect(
     text: string,
     items: {ent: NerEntity; kind: PiiKind}[],
@@ -376,7 +346,7 @@ export class DOMWatchers {
   ) {
     if (!this.modal) this.installModal();
     if (!this.modal) return;
-
+    this.modalContext = { items, onConfirm };
     // group by kind
     const byKind = new Map<PiiKind, Array<{ent: NerEntity; kind: PiiKind; idx: number}>>();
     items.forEach((it, idx) => {
@@ -457,21 +427,6 @@ export class DOMWatchers {
 
     this.modal.classList.add("is-open");
 
-    // Confirm handler
-    const redactBtn = this.modal.querySelector('[data-act="redact"]') as HTMLButtonElement;
-    const onClick = () => {
-      redactBtn.removeEventListener("click", onClick);
-
-      const selectedIdx = Array.from(this.modal!.querySelectorAll<HTMLInputElement>(".pii-item-ck"))
-        .filter((ck) => ck.checked)
-        .map((ck) => Number(ck.dataset.idx));
-
-      const selected = selectedIdx.map((i) => items[i]);
-      this.hideModal();
-      onConfirm(selected);
-    };
-    redactBtn.addEventListener("click", onClick);
-
     // Focus trap + autofocus (same as your current code)
     const card = this.modal.querySelector(".pii-modal__card") as HTMLElement;
     card.focus();
@@ -547,6 +502,14 @@ export class DOMWatchers {
   }
 
   private async detectAndPrompt(el: HTMLElement, ctx: EditorCtx) {
+
+    if (this.currentRequestCtl) {
+      this.currentRequestCtl.abort();
+      log("Aborted previous NER request");
+    }
+    this.currentRequestCtl = new AbortController();
+    const signal = this.currentRequestCtl.signal;
+
     const t0 = performance.now();
     const mySeq = ++this.seq;
     const text = this.getText(el);
@@ -561,13 +524,13 @@ export class DOMWatchers {
     let resp: {entities: NerEntity[]};
     try {
       log("Calling NER API", {url: this.policy.nerApiUrl, len: text.length, seq: mySeq});
-      resp = await callRedactApi(text, this.policy.nerApiUrl!);
-    } catch (e) {
-      err("NER API call failed", e);
-      return;
-    }
-    if (mySeq !== this.seq) {
-      warn("Stale detect result discarded", {mySeq, seq: this.seq});
+      resp = await callRedactApi(text, this.policy.nerApiUrl!, signal); 
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        log('NER API call was aborted.', { mySeq });
+      } else {
+        err("NER API call failed", e);
+      }
       return;
     }
 
@@ -580,6 +543,22 @@ export class DOMWatchers {
         const key = this.makeAllowKey(kind, ent.text);
         return !allow.includes(key) && !allow.includes(ent.text.trim());
       });
+    // Group items by kind and index, collecting all original labels
+    const groupedItemsMap = new Map<string, { ent: NerEntity; kind: PiiKind; originalLabels: string[] }>();
+    for (const item of items) {
+      const key = `${item.kind}:${item.ent.index}`;
+      const existing = groupedItemsMap.get(key);
+      if (existing) {
+        existing.originalLabels.push(item.ent.label);
+      } else {
+        groupedItemsMap.set(key, {
+          ent: item.ent,
+          kind: item.kind,
+          originalLabels: [item.ent.label],
+        });
+      }
+    }
+    const uniqueGroupedItems = Array.from(groupedItemsMap.values());
 
     // Debug logging
     log("Raw entities from server:", resp.entities);
@@ -598,7 +577,7 @@ export class DOMWatchers {
       timeMs: dt,
     });
 
-    if (items.length === 0) return;
+    if (uniqueGroupedItems.length === 0) return;
 
     const groups = new Map<PiiKind, NerEntity[]>();
     for (const {ent, kind} of items) {
@@ -607,21 +586,37 @@ export class DOMWatchers {
       groups.set(kind, arr);
     }
 
-    this.openModalWithSelect(text, items, (selected) => {
-      if (!selected.length) {
-        info("No items selected for redaction");
-        return;
+    this.openModalWithSelect(text, uniqueGroupedItems, (selected) => {
+    const allowChecked = (this.modal!.querySelector('[data-opt="allow"]') as HTMLInputElement).checked;
+
+    if (allowChecked) {
+      // If the "Always allow" box is checked, find the unselected items and allowlist them.
+      const selectedKeys = new Set(selected.map(item => `${item.kind}:${item.ent.index}`));
+      
+      const unselectedItems = uniqueGroupedItems.filter(item => {
+        const key = `${item.kind}:${item.ent.index}`;
+        return !selectedKeys.has(key);
+      });
+
+      for (const item of unselectedItems) {
+        this.addToAllowlist(item.kind, item.ent.text);
       }
-      const allowChecked = (this.modal!.querySelector('[data-opt="allow"]') as HTMLInputElement)
-        .checked;
-      this.applyRedactions(el, ctx, selected, allowChecked);
-    });
+    }
+
+    if (!selected.length) {
+      info("No items selected for redaction");
+      return;
+    }
+
+    // Now, call applyRedactions without the boolean, as its job is just to redact.
+    this.applyRedactions(el, ctx, selected);
+  });
   }
+  
   private applyRedactions(
     el: HTMLElement,
     ctx: EditorCtx,
-    items: {ent: NerEntity; kind: PiiKind}[],
-    persistAllow: boolean
+    items: {ent: NerEntity; kind: PiiKind}[]
   ) {
     // sort from highest word index to lowest to keep indices stable
     const sorted = [...items].sort((a, b) => b.ent.index - a.ent.index);
@@ -631,7 +626,7 @@ export class DOMWatchers {
     const words = text.split(/(\s+)/); // keep whitespace as separate elements
     const wordIndices = words.filter((_, i) => i % 2 === 0); // get only word elements (skip whitespace)
 
-    const redactions: {id: string; kind: string; value: string}[] = [];
+    const redactions: {id: string; kind: string; originalLabel: string;value: string}[] = [];
     const map: Record<string, string> = {};
 
     for (const {ent, kind} of sorted) {
@@ -651,9 +646,8 @@ export class DOMWatchers {
 
       // use the actual text from input field for both map and redactions
       map[token] = actualText;
-      redactions.push({id: token, kind, value: actualText});
+      redactions.push({id: token, kind, originalLabel: ent.label, value: actualText});
 
-      if (persistAllow) this.addToAllowlist(kind, actualText);
     }
 
     // reconstruct text from modified words array
@@ -667,7 +661,7 @@ export class DOMWatchers {
 
     this.setText(el, text);
     this.renderHUD(ctx, /*userInitiated*/ true);
-    info("Applied redactions", {count: redactions.length, persistAllow});
+    info("Applied redactions", {count: redactions.length});
   }
 
   // ── Text helpers (caret-safe) ──────────────────────────────────────────────

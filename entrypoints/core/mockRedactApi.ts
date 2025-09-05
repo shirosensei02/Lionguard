@@ -179,6 +179,7 @@ export function scanText(text: string, opts?: MockOpts): NerResponse {
 export async function callRedactApi(
   text: string,
   url: string = DEFAULT_URL,
+  signal?: AbortSignal,
   opts?: MockOpts
 ): Promise<NerResponse> {
   const { delayMs, errorRate } = { ...DEFAULT_OPTS, ...(opts || {}) };
@@ -195,7 +196,8 @@ export async function callRedactApi(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text: text })
+      body: JSON.stringify({ text: text }),
+      signal: signal,
     });
 
     if (!response.ok) {
