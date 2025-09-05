@@ -1,0 +1,139 @@
+/* ---------- HUD chips (unchanged, small tweaks) ---------- */
+.pii-hud {
+  position: fixed; bottom: 16px; right: 16px;
+  display: flex; gap: 8px; z-index: 2147483647;
+  pointer-events: none;
+}
+.pii-chip {
+  pointer-events: auto;
+  background: #0b1020; color: #fff; border: 1px solid #1f2937;
+  border-radius: 14px; padding: 6px 10px; font: 12px/1.2 system-ui, sans-serif;
+  display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
+.pii-chip .icon { width: 14px; height: 14px; display: inline-block; }
+.pii-chip button { all: unset; cursor: pointer; color: #93c5fd; font-weight: 600; margin-left: 6px; }
+.pii-chip[data-kind="EMAIL"]{ background:#111827; }
+.pii-chip[data-kind="PHONE"]{ background:#0f172a; }
+.pii-chip[data-kind="CREDIT_CARD"], .pii-chip[data-kind="NRIC"]{ background:#111827; }
+.pii-chip[data-kind="IP"]{ background:#1f2937; }
+.pii-chip[data-kind="NAME"]{ background:#0b1020; }
+
+/* ---------- Modal container ---------- */
+.pii-modal {
+  position: fixed; inset: 0; display: none; z-index: 2147483646;
+}
+.pii-modal.is-open { display: block; }
+
+/* No dim, no blur backdrop (click-through layer just for closing) */
+.pii-modal__backdrop {
+  position: absolute; inset: 0;
+  background: transparent; /* change to rgba(0,0,0,.2) if you want dim without blur */
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* ---------- Card ---------- */
+.pii-modal__card {
+  position: absolute; right: 24px; bottom: 80px;
+  width: min(560px, calc(100vw - 48px));
+  background: #0a0f1c; color: #e5e7eb; border-radius: 14px; padding: 0;
+  border: 1px solid #1f2937;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  font: 13px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  outline: none;
+}
+
+/* ---------- Header ---------- */
+.pii-modal__header {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px;
+  align-items: center; padding: 14px 16px; border-bottom: 1px solid #1f2937;
+  background: linear-gradient(180deg, #0d162a 0%, #0a0f1c 100%);
+}
+.pii-modal__icon { font-size: 18px; line-height: 1; }
+.pii-modal__titles { display: flex; flex-direction: column; gap: 2px; }
+.pii-modal__title { margin: 0; font-size: 14px; font-weight: 700; color: #f3f4f6; }
+.pii-modal__subtitle { margin: 0; font-size: 12px; color: #9ca3af; }
+.pii-modal__x {
+  all: unset; cursor: pointer; color: #9ca3af; padding: 4px 6px; border-radius: 8px;
+}
+.pii-modal__x:hover { background: #111827; color: #e5e7eb; }
+
+/* ---------- Body ---------- */
+.pii-modal__body { padding: 12px 16px; max-height: 45vh; overflow: auto; }
+.pii-modal__group { margin: 10px 0 12px; }
+.pii-modal__groupHead {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.pii-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: .02em;
+  padding: 4px 8px; border-radius: 999px; border: 1px solid #1f2937;
+  background: #0e172a; color: #cbd5e1;
+}
+.pii-badge[data-kind="EMAIL"] { background:#0b1324; }
+.pii-badge[data-kind="PHONE"] { background:#0a1426; }
+.pii-badge[data-kind="CREDIT_CARD"], .pii-badge[data-kind="NRIC"] { background:#0b1324; }
+.pii-badge[data-kind="IP"] { background:#10172a; }
+.pii-badge[data-kind="NAME"] { background:#0a0f1c; }
+
+.pii-count {
+  font-size: 11px; padding: 2px 6px; border-radius: 999px;
+  background: #111827; color: #9ca3af; border: 1px solid #1f2937;
+}
+
+.pii-modal__items {
+  margin: 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: 1fr; gap: 6px;
+}
+.pii-item {
+  padding: 8px 10px; border-radius: 10px; border: 1px solid #1f2937;
+  background: #0b1020; color: #e5e7eb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pii-item:hover { background: #0e162a; }
+
+.pii-modal__opt {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px; color: #cbd5e1;
+  user-select: none;
+}
+.pii-modal__opt input { width: 14px; height: 14px; }
+
+/* ---------- Footer / Buttons ---------- */
+.pii-modal__actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 16px; border-top: 1px solid #1f2937;
+  background: #0a0f1c; border-bottom-left-radius: 14px; border-bottom-right-radius: 14px;
+}
+
+.btn {
+  all: unset; cursor: pointer; padding: 8px 12px; border-radius: 10px; font-weight: 700;
+  border: 1px solid transparent; transition: transform .05s ease, background .15s ease, border-color .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: #2563eb; color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #0b1020; color: #e5e7eb; border-color: #1f2937; }
+.btn-secondary:hover { background: #111827; }
+
+/* Make sure NO blur can sneak in from site styles */
+.pii-modal__backdrop, .pii-modal__card {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.pii-globalSelect {
+  display: flex; gap: 8px; margin-bottom: 8px;
+}
+.pii-globalSelect button {
+  all: unset; cursor: pointer; padding: 6px 10px; border-radius: 8px; font-weight: 700;
+  border: 1px solid #1f2937; background: #0b1020; color: #e5e7eb;
+}
+.pii-globalSelect button:hover { background: #111827; }
+
+.pii-item-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+.pii-item-ck { width: 14px; height: 14px; }
+.pii-item-text {
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pii-badge input.pii-group-toggle { margin-right: 6px; transform: translateY(1px); }
