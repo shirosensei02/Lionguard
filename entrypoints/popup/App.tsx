@@ -13,6 +13,8 @@ function App() {
   const [tempList, setTempList] = useState<string[]>([]);
   const [newUrl, setNewUrl] = useState<string>('');
   const [flaggedCount, setFlaggedCount] = useState<number>(0);
+  const [email, setEmail] = useState<string>(''); // Added from your branch
+  const [breachCount, setBreachCount] = useState<string>('0'); // Added from your bran
 
   // --- Page navigation handlers ---
   const footerDetailsOnClick = () => setCurrentPage('details');
@@ -88,6 +90,26 @@ function App() {
         setTempList(prev => prev.filter(u => u !== host));
       }
     });
+  };
+
+  // --- Handle Email Breach Check ---
+  const handleEmailCheck = async () => {
+    if (!email) return;
+
+    try {
+      // Using `chrome.runtime.sendMessage` and `action` for consistency with the main branch.
+      const result = await chrome.runtime.sendMessage({
+        action: "checkBreach",
+        email: email,
+      });
+
+      console.log("Full API response:", result);
+
+      const count = result.breaches?.[0]?.length || 0;
+      setBreachCount(count.toString());
+    } catch (error) {
+      console.error("Error checking breaches:", error);
+    }
   };
 
   // --- Render Settings Page ---
@@ -212,9 +234,25 @@ function App() {
       </div>
 
       <div className='body'>
+        {/* --- Added Email Breach Checker UI --- */}
+        <div className="breach-checker" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter email to check"
+            className="breach-input"
+            style={{ flex: 1, padding: '0.5rem' }}
+          />
+          <button onClick={handleEmailCheck} className="breach-button">
+            Check
+          </button>
+        </div>
+
         <Card title="Sites flagged" count={flaggedCount.toString()} />
         <Card title="PII warning" count="3" />
-        <Card title="Breach check" count="0" />
+        {/* --- Modified to use breachCount state --- */}
+        <Card title="Breach check" count={breachCount} />
       </div>
 
       <div className='footer'>

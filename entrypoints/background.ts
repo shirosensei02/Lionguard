@@ -371,9 +371,48 @@ export default defineBackground(() => {
           sendResponse({ ok: false });
         }
       }
+
+      if (msg.action === "checkBreach" && msg.email) {
+        const result = await checkEmailForBreach(msg.email);
+        sendResponse(result);
+      }
+
     };
 
     handle();
     return true; // keep async response open
   });
 });
+
+
+async function checkEmailForBreach(email: string) {
+  try {
+    const apiUrl = `https://api.xposedornot.com/v1/check-email/${encodeURIComponent(email)}`;
+    
+    // Use the browser's built-in fetch API to make the request
+    const response = await fetch(apiUrl);
+
+    // If the email is not found, the API returns a 404 status
+    if (response.status === 404) {
+      const errorData = await response.json();
+      if (errorData.Error === "Not found") {
+        return { breaches: [], message: 'No breaches found.' };
+      }
+    }
+
+    if (!response.ok) {
+      // Handle other potential errors like server issues
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+
+  } catch (error) {
+    console.error('Failed to check for breaches:', error);
+    // Return an error object so the frontend knows something went wrong
+    return { error: 'Failed to fetch breach data.' };
+  }
+}
+
+(self as any).checkEmailForBreach = checkEmailForBreach;
