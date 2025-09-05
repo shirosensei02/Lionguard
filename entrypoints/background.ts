@@ -273,53 +273,88 @@ export default defineBackground(() => {
         sendResponse(Array.from(tempAllowlist));
       }
 
-      // 2. Add URL to temporary allowlist (proceed-temp)
-      if (msg.action === "proceed-temp" && msg.url && sender.tab?.id) {
-        let fullUrl = msg.url;
-        if (!/^https?:\/\//i.test(msg.url)) fullUrl = "https://" + msg.url;
-        try {
-          const host = new URL(fullUrl).hostname;
-          const permanent = await getAllowlist();
+// 2. Add URL to temporary allowlist (proceed-temp)
+if (msg.action === "proceed-temp" && msg.url && sender.tab?.id) {
+  let fullUrl = msg.url;
+  if (!/^https?:\/\//i.test(msg.url)) fullUrl = "https://" + msg.url;
 
-          // Only add to temp if not in permanent allowlist
-          if (!permanent.has(host)) {
-            tempAllowlist.add(host);
-            console.log(`[Background] Added to temporary allowlist: ${host}`);
-          }
+  try {
+    const host = new URL(fullUrl).hostname;
+    const permanent = await getAllowlist();
 
-          // Remove any dynamic rules for this host
-          const rules = await chrome.declarativeNetRequest.getDynamicRules();
-          const removeIds = rules.filter(r => r.condition.urlFilter === host).map(r => r.id);
-          if (removeIds.length > 0) {
-            await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
-          }
+    // Only add to temp if not in permanent allowlist
+    if (!permanent.has(host)) {
+      tempAllowlist.add(host);
+      console.log(`[Background] Added to temporary allowlist: ${host}`);
+    }
 
-          chrome.tabs.update(sender.tab.id, { url: fullUrl });
-          sendResponse({ ok: true });
-
-        } catch (err) {
-          console.error("[Background] proceed-temp failed:", err);
-          sendResponse({ ok: false });
-        }
+    // --- REMOVE ANY DYNAMIC RULES THAT BLOCK THIS HOST ---
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeIds = rules.filter(r => {
+      try {
+        const ruleHost = new URL("https://" + r.condition.urlFilter).hostname;
+        return ruleHost === host;
+      } catch {
+        return false;
       }
+    }).map(r => r.id);
 
-      // 3. Remove URL from temporary allowlist
-      if (msg.action === "remove-temp-url" && msg.url) {
-        try {
-          const host = new URL(msg.url).hostname;
-          tempAllowlist.delete(host);
-          console.log(`[Background] Removed from temporary allowlist: ${host}`);
+    if (removeIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
+      console.log(`[Background] Removed dynamic rules for host: ${host}`);
+    }
 
-          // Optionally, re-block immediately if malicious
-          const malicious = await isMalicious(msg.url);
-          if (malicious) await addBlockingRule(msg.url);
+    // Navigate the tab
+    chrome.tabs.update(sender.tab.id, { url: fullUrl });
+    sendResponse({ ok: true });
 
-          sendResponse({ ok: true });
-        } catch (err) {
-          console.error("[Background] remove-temp-url failed:", err);
-          sendResponse({ ok: false });
+  } catch (err) {
+    console.error("[Background] proceed-temp failed:", err);
+    sendResponse({ ok: false });
+  }
+}
+
+// 3. Remove URL from temporary allowlist
+if (msg.action === "remove-temp-url" && msg.url) {
+  try {
+    let fullUrl = msg.url;
+    if (!/^https?:\/\//i.test(fullUrl)) fullUrl = "https://" + fullUrl; // normalize
+
+    const host = new URL(fullUrl).hostname;
+    tempAllowlist.delete(host);
+    console.log(`[Background] Removed from temporary allowlist: ${host}`);
+
+    // Remove any dynamic blocking rules for this host
+    const rules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeIds = rules.filter(r => r.condition.urlFilter === host).map(r => r.id);
+    if (removeIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules: [] });
+      console.log(`[Background] Removed dynamic rules for ${host}`);
+    }
+
+    // Refresh all tabs that match this host so they can load
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        if (tab.url && tab.id) {
+          try {
+            const tabHost = new URL(tab.url).hostname;
+            if (tabHost === host) {
+              chrome.tabs.reload(tab.id); // reload the tab
+            }
+          } catch {}
         }
-      }
+      });
+    });
+
+    sendResponse({ ok: true });
+  } catch (err) {
+    console.error("[Background] remove-temp-url failed:", err);
+    sendResponse({ ok: false });
+  }
+}
+
+
+
     };
 
     handle();

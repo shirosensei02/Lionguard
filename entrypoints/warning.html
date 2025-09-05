@@ -66,17 +66,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // --- Proceed Anyway (temporary allowlist) ---
-  proceedBtn.addEventListener('click', () => {
-    if (!decodedUrl) return;
-    chrome.runtime.sendMessage(
-      { action: "proceed-temp", url: decodedUrl },
-      (response) => {
-        if (!response?.ok) {
-          console.error("Failed to proceed to site:", decodedUrl);
-        }
+proceedBtn.addEventListener('click', () => {
+  if (!decodedUrl) return;
+
+  chrome.runtime.sendMessage(
+    { action: "proceed-temp", url: decodedUrl },
+    (response) => {
+      if (!response?.ok) {
+        console.error("Failed to proceed to site:", decodedUrl);
+        return;
       }
-    );
-  });
+
+      // Redirect the current tab to the URL
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]?.id) {
+          chrome.tabs.update(tabs[0].id, { url: decodedUrl });
+        }
+      });
+    }
+  );
+});
 
   // --- Allowlist permanently ---
   allowBtn.addEventListener('click', () => {
