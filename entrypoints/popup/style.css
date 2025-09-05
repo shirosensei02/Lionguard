@@ -162,3 +162,51 @@ button:active {
   font-weight: 600;
   color: var(--color-red);
 }
+
+/* Email breach checker styles */
+.breach-checker {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  width: 100%;
+}
+
+.breach-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-light-grey);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-grey);
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.breach-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.1);
+}
+
+.breach-input::placeholder {
+  color: #9CA3AF;
+}
+
+.breach-button {
+  background-color: var(--color-blue);
+  color: white;
+  border-radius: 0.75rem;
+  font-size: 0.750rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.breach-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.breach-button:active {
+  transform: translateY(1px);
+}

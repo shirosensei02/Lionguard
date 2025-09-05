@@ -78,6 +78,24 @@ export default defineContentScript({
             console.error("Error calling redact API:", error);
           }
         }
+
+        // Check for email breach if input type is email
+        if (isValidInput && inputType === "email") {
+          try {
+            const result = await browser.runtime.sendMessage({
+              type: 'checkBreach',
+              email: inputValue
+            });
+            
+            console.log("Email breach check result:", result);
+            // Handle the breach result here - maybe show a warning UI
+            if (result.breaches?.length > 0) {
+              // Show warning to user
+            }
+          } catch (error) {
+            console.error("Error checking email breach:", error);
+          }
+        }
       }
     };
 
