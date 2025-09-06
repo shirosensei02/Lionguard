@@ -8,7 +8,7 @@ export interface NerEntity {
 export interface NerResponse { entities: NerEntity[]; }
 
 
-const DEFAULT_URL = 'http://localhost:8000/detect';
+const DEFAULT_URL = 'https://pii-detector-259751517415.asia-southeast1.run.app';
 
 type MockOpts = {
 
