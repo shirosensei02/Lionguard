@@ -29,7 +29,7 @@ LionGuard stands out by being:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/your-username/lionguard.git](https://github.com/your-username/lionguard.git)
+    git clone https://github.com/shirosensei02/Lionguard.git
     ```
 
 2.  **Navigate to the project directory:**
