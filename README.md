@@ -34,7 +34,7 @@ LionGuard stands out by being:
 
 2.  **Navigate to the project directory:**
     ```bash
-    cd lionguard
+    cd Lionguard
     ```
 
 3.  **Install the dependencies:**
