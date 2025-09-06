@@ -61,4 +61,4 @@ LionGuard stands out by being:
 That's it! This command will automatically build the extension, open a new Chrome window with LionGuard already loaded!
 
 
-# Note: Please be aware that the core intelligence of LionGuard comes from a language model we trained. Due to its significant size, the model cannot be included in this GitHub repository. Instead, it is deployed on a cloud server, and the extension makes API calls to it for analysis.
+**Note: Please be aware that the core intelligence of LionGuard comes from a language model we trained. Due to its significant size, the model cannot be included in this GitHub repository. Instead, it is deployed on a cloud server, and the extension makes API calls to it for analysis.
