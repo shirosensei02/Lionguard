@@ -252,7 +252,7 @@ function App() {
         <Card title="Sites flagged" count={flaggedCount.toString()} />
         <Card title="PII warning" count="3" />
         {/* --- Modified to use breachCount state --- */}
-        <Card title="Breach check" count={breachCount} />
+        <Card title="Breach count" count={breachCount} />
       </div>
 
       <div className='footer'>
