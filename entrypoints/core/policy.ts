@@ -37,7 +37,7 @@ export const DEFAULT_POLICY: Policy = {
   blockKinds: ["EMAIL", "PHONE", "CREDIT_CARD", "NRIC", "ADDRESS", "IP", "NAME"],
   localProxy: false,
   useNerApi: true,
-  nerApiUrl: "http://127.0.0.1:8000/detect",
+  nerApiUrl: "https://pii-detector-259751517415.asia-southeast1.run.app/detect",
 };
 
 const KEY = "pii_policy_v1";
